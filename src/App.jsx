@@ -180,10 +180,83 @@ export default function App() {
   const currentCurrency = CURRENCIES[settings.currency] || CURRENCIES.USD;
   const t = (key) => DICT[settings.language]?.[key] || DICT['KU']?.[key] || key;
 
+  // PWA & Mobile App Setup Code
   useEffect(() => {
-    let meta = document.querySelector("meta[name=viewport]");
-    if (!meta) { meta = document.createElement("meta"); meta.name = "viewport"; document.head.appendChild(meta); }
-    meta.content = "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0";
+    if (typeof document === 'undefined') return;
+
+    // 1. Setup Viewport for Mobile
+    let metaViewport = document.querySelector('meta[name="viewport"]');
+    if (!metaViewport) {
+      metaViewport = document.createElement('meta');
+      metaViewport.name = 'viewport';
+      document.head.appendChild(metaViewport);
+    }
+    metaViewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover');
+
+    // 2. iOS (Apple) Specific Meta Tags
+    const iosMeta1 = document.createElement('meta');
+    iosMeta1.name = 'apple-mobile-web-app-capable';
+    iosMeta1.content = 'yes';
+    document.head.appendChild(iosMeta1);
+
+    const iosMeta2 = document.createElement('meta');
+    iosMeta2.name = 'apple-mobile-web-app-status-bar-style';
+    iosMeta2.content = 'black-translucent';
+    document.head.appendChild(iosMeta2);
+
+    const iosMeta3 = document.createElement('meta');
+    iosMeta3.name = 'apple-mobile-web-app-title';
+    iosMeta3.content = STORE_NAME;
+    document.head.appendChild(iosMeta3);
+
+    // 3. Android / General Mobile App Meta Tags
+    const androidMeta = document.createElement('meta');
+    androidMeta.name = 'mobile-web-app-capable';
+    androidMeta.content = 'yes';
+    document.head.appendChild(androidMeta);
+
+    const themeColor = document.createElement('meta');
+    themeColor.name = 'theme-color';
+    themeColor.content = '#0f172a'; // Dark color for the top bar
+    document.head.appendChild(themeColor);
+
+    // 4. Generate dynamic manifest.json for PWA
+    const manifest = {
+      name: STORE_NAME,
+      short_name: STORE_NAME,
+      description: 'سیستمی بەڕێوەبردنی ئایدا ستۆر',
+      start_url: window.location.href,
+      display: 'standalone',
+      background_color: '#f8fafc',
+      theme_color: '#0f172a',
+      icons: [
+        {
+          src: STORE_LOGO || 'https://i.ibb.co/hx5T0jpJ/icon.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any maskable'
+        },
+        {
+          src: STORE_LOGO || 'https://i.ibb.co/hx5T0jpJ/icon.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any maskable'
+        }
+      ]
+    };
+
+    const stringManifest = JSON.stringify(manifest);
+    const blob = new Blob([stringManifest], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(blob);
+    
+    let linkManifest = document.querySelector('link[rel="manifest"]');
+    if (!linkManifest) {
+      linkManifest = document.createElement('link');
+      linkManifest.rel = 'manifest';
+      document.head.appendChild(linkManifest);
+    }
+    linkManifest.href = manifestURL;
+
   }, []);
 
   const logAction = async (actionDesc) => {
