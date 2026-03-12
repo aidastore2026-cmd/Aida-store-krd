@@ -27,6 +27,7 @@ const LANGUAGES = {
   AR: { label: 'العربية', code: 'AR', dir: 'rtl' } 
 };
 
+// Full & Enriched Translation Dictionary
 const DICT = {
   KU: { 
     m_dashboard:'ئامارەکانی سەرەتا', m_items:'پێناسەکردنی کاڵاکان', m_companies:'لیستی کۆمپانیاکان', m_agents:'لیستی بریکارەکان', m_offices:'نوسینگەکانی حەواڵە', m_purchases:'کڕینی کاڵاکان', m_sales:'فرۆشتنی کاڵاکان', m_installment_ops:'مامەڵەی قیستەکان', m_payments:'وەرگرتن و پێدانی پارە', m_inventory:'کۆگا (بەردەست)', m_reports:'ڕاپۆرتە گشتییەکان', m_capital:'سندوق و سەرمایە', m_users:'لیستی بەکارهێنەران', m_settings:'ڕێکخستنەکانی سیستم', 
@@ -192,9 +193,12 @@ export default function App() {
 
   const handleLogout = () => { setIsLogged(false); setLoggedAppUser(null); setLoginForm({ user: '', pass: '' }); logAction('Logout'); };
 
+  // Fixed hasPermission to return boolean only
   const hasPermission = (modId) => {
-      if (loggedAppUser?.role === 'admin' || loggedAppUser?.username === DEFAULT_ADMIN_USER) return true;
-      if (!loggedAppUser?.permissions) return true; return loggedAppUser.permissions.includes(modId);
+      if (!loggedAppUser) return false;
+      if (loggedAppUser.role === 'admin' || loggedAppUser.username === DEFAULT_ADMIN_USER) return true;
+      if (!loggedAppUser.permissions) return true; 
+      return loggedAppUser.permissions.includes(modId);
   };
 
   useEffect(() => { try { const savedSettings = localStorage.getItem('sewastore_settings'); if (savedSettings) { const parsed = JSON.parse(savedSettings); setSettings(prev => ({...prev, ...parsed})); } } catch (e) {} }, []);
@@ -527,7 +531,7 @@ export default function App() {
   };
 
   const renderUsers = () => {
-    if (loggedAppUser?.role !== 'admin') return null; const userToEdit = editingId ? appUsers.find(u => u.id === editingId) : null;
+    if (!loggedAppUser || loggedAppUser.role !== 'admin') return null; const userToEdit = editingId ? appUsers.find(u => u.id === editingId) : null;
     return (
       <div className="space-y-4 md:space-y-6"><h2 className="text-xl md:text-2xl font-bold text-slate-800">{t('m_users')}</h2>
         <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
@@ -808,7 +812,9 @@ export default function App() {
                   <td data-label={t('tot')} className={`${tdCls} font-bold ${currentTheme.text}`} dir="ltr">{formatMoney(s.price, s.currency)}</td>
                   <td data-label={t('pad')} className={`${tdCls} font-bold text-emerald-600`} dir="ltr">{formatMoney(paid, s.currency)}</td>
                   <td data-label={t('rem_d')} className={`${tdCls} text-black font-bold`} dir="ltr">{formatMoney(balance, s.currency)}</td>
-                  <td data-label={t('act')} className={`${tdCls} flex flex-wrap gap-2`}>{!isCash && <button onClick={() => setViewingInstallments(s.id)} className={`bg-blue-50 text-blue-800 p-1.5 md:p-2 rounded-full font-bold`} title="وردەکاری هەژمار"><IconList/></button>}{isInst && <button onClick={() => { setViewingDocuments(s); setSelectedDocs((s.documents || []).map(d => typeof d === 'string' ? {name:d, fileUrl:null} : d)); }} className={`${currentTheme.text} ${currentTheme.lightBg} p-1.5 md:p-2 rounded-full`} title="بەڵگەنامەکان"><IconDocs /></button>}{isInst && <button onClick={() => printContract(s)} className="text-slate-900 bg-slate-200 p-1.5 md:p-2 rounded-full" title="چاپکردنی گرێبەست"><IconContract /></button>}<button onClick={() => printSale(s)} className="text-slate-600 bg-slate-200 p-1.5 md:p-2 rounded-full" title="چاپکردنی پسوڵە"><IconPrinter /></button><button onClick={() => handleEditSale(s)} className={`${currentTheme.text} ${currentTheme.lightBg} p-1.5 md:p-2 rounded-full`} title="دەستکاریکردن"><IconEdit /></button><button onClick={() => deleteSale(s.id)} className="text-rose-600 bg-rose-100 p-1.5 md:p-2 rounded-full"><IconTrash /></button></td>
+                  <td data-label={t('act')} className={`${tdCls} flex flex-wrap gap-2`}>{!isCash && <button onClick={() => setViewingInstallments(s.id)} className={`bg-blue-50 text-blue-800 p-1.5 md:p-2 rounded-full font-bold`} title="وردەکاری هەژمار"><IconList/></button>}{isInst && <button onClick={() => { setViewingDocuments(s); setSelectedDocs((s.documents || []).map(d => typeof d === 'string' ? {name:d, fileUrl:null} : d)); }} className={`${currentTheme.text} ${currentTheme.lightBg} p-1.5 md:p-2 rounded-full`} title="بەڵگەنامەکان"><IconDocs /></button>}{isInst && <button onClick={() => printContract(s)} className="text-slate-900 bg-slate-200 p-1.5 md:p-2 rounded-full" title="چاپکردنی گرێبەست"><IconContract /></button>}<button onClick={() => printSale(s)} className="text-slate-600 bg-slate-200 p-1.5 md:p-2 rounded-full" title="چاپکردنی پسوڵە"><IconPrinter /></button>
+                    {hasPermission('sales') && <button onClick={() => handleEditSale(s)} className={`${currentTheme.text} ${currentTheme.lightBg} p-1.5 md:p-2 rounded-full`} title="دەستکاریکردن"><IconEdit /></button>}
+                    <button onClick={() => deleteSale(s.id)} className="text-rose-600 bg-rose-100 p-1.5 md:p-2 rounded-full"><IconTrash /></button></td>
                 </tr>
               )})}
             </tbody>
@@ -862,12 +868,12 @@ export default function App() {
   const [statementFilter, setStatementFilter] = useState({ name: '', dateFrom: '', dateTo: '' });
   const [itemReportFilter, setItemReportFilter] = useState({ name: '', dateFrom: '', dateTo: '' });
 
-  useEffect(() => { if(!hasPermission('installment_ops') && (reportTab === 'active_accounts' || reportTab === 'late')) { setReportTab('agents_all'); } }, [loggedAppUser, reportTab]);
+  useEffect(() => { if(loggedAppUser && !hasPermission('installment_ops') && (reportTab === 'active_accounts' || reportTab === 'late')) { setReportTab('agents_all'); } }, [loggedAppUser, reportTab]);
 
   const renderReports = () => {
     const today = getToday();
     const activeAccounts = sales.filter(s => s.saleType === 'installment').map(s => ({ ...s, paid: getSalePaidAmount(s.id), balance: s.price - getSalePaidAmount(s.id) })).filter(s => s.balance > 0);
-    const lateAccounts = sales.filter(s => s.saleType === 'installment').map(s => { const paid = getSalePaidAmount(s.id); let expectedToPay = s.advance; s.installments?.forEach(inst => { if (inst.dueDate <= today) expectedToPay += inst.amount; }); const arrears = Math.max(0, expectedToPay - paid); return { ...s, paid, balance: s.price - paid, arrears }; }).filter(s => s.arrears > 0);
+    const lateAccounts = sales.filter(s => s.saleType === 'installment').map(s => { const paid = getSalePaidAmount(s.id); let expectedToPay = s.advance || 0; s.installments?.forEach(inst => { if (inst.dueDate <= today) expectedToPay += inst.amount; }); const arrears = Math.max(0, expectedToPay - paid); return { ...s, paid, balance: s.price - paid, arrears }; }).filter(s => s.arrears > 0);
     const overdueAgents = sales.filter(s => (s.saleType === 'credit' || s.saleType === 'credit_agent' || s.saleType === 'credit_company') && s.dueDate < today && (s.price - getSalePaidAmount(s.id)) > 0).map(s => ({ ...s, paid: getSalePaidAmount(s.id), balance: s.price - getSalePaidAmount(s.id) }));
     const agentsStatus = agents.map(a => ({ ...a, debt: getAgentDebt(a.id, settings.currency) })).sort((a,b) => b.debt - a.debt);
     const companiesStatus = companies.map(c => ({ ...c, debt: getCompanyDebt(c.id, settings.currency) })).sort((a,b) => b.debt - a.debt);
@@ -1010,7 +1016,7 @@ export default function App() {
   };
 
   const renderSettings = () => {
-      if (loggedAppUser?.role !== 'admin') return null;
+      if (!loggedAppUser || loggedAppUser.role !== 'admin') return null;
       return (
          <div className="space-y-4 md:space-y-6"><h2 className="text-xl md:text-2xl font-bold text-slate-800">{t('m_settings')}</h2>
             <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
